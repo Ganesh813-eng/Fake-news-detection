@@ -1,1 +1,302 @@
 # Fake-news-detection
+
+<html lang="en">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1" name="viewport"/>
+  <title>
+   AI Fake News Detector Chatbot with URL Analysis
+  </title>
+  <script src="https://cdn.tailwindcss.com">
+  </script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;display=swap" rel="stylesheet"/>
+  <style>
+   body {
+      font-family: 'Inter', sans-serif;
+    }
+  </style>
+ </head>
+ <body class="bg-gray-50 min-h-screen flex flex-col">
+  <header class="bg-white shadow-md">
+   <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+     <img alt="Logo icon with letters AI in blue and white background" class="w-10 h-10" height="40" src="https://storage.googleapis.com/a1aa/image/21953378-3637-495e-eaaf-3d3c36a35d5a.jpg" width="40"/>
+     <h1 class="text-2xl font-semibold text-gray-800">
+      Fake News Detector AI
+     </h1>
+    </div>
+   </div>
+  </header>
+  <main class="flex-grow max-w-4xl mx-auto px-4 py-6 flex flex-col">
+   <section class="flex flex-col flex-grow bg-white rounded-lg shadow-md p-4 overflow-hidden">
+    <div class="flex flex-col space-y-4 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 flex-grow mb-4" id="chat-container" style="min-height: 400px;">
+     <div class="text-center text-gray-400 mt-20 select-none">
+      <i class="fas fa-robot fa-3x mb-4">
+      </i>
+      <p class="text-lg">
+       Paste a news headline, text, or a URL to check if it's fake or real.
+      </p>
+     </div>
+    </div>
+    <form class="flex space-x-3" id="chat-form">
+     <input autocomplete="off" class="flex-grow border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" id="user-input" placeholder="Paste news text, headline, or URL here..." required="" type="text"/>
+     <button aria-label="Send message" class="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-5 py-2 flex items-center justify-center" type="submit">
+      <i class="fas fa-paper-plane">
+      </i>
+     </button>
+    </form>
+   </section>
+  </main>
+  <footer class="bg-white border-t border-gray-200 text-center py-4 text-gray-500 text-sm">
+   © 2024 AI Fake News Detector. All rights reserved.
+  </footer>
+  <script>
+   // Keywords for fake news detection
+    const fakeNewsKeywords = [
+      "shocking",
+      "miracle",
+      "secret",
+      "conspiracy",
+      "unbelievable",
+      "click here",
+      "you won't believe",
+      "fake",
+      "hoax",
+      "scam",
+      "urgent",
+      "breaking",
+      "exclusive",
+      "cure",
+      "miracle cure",
+      "government cover-up",
+      "hidden truth",
+      "exposed",
+      "banned",
+      "sensational",
+    ];
+
+    const chatContainer = document.getElementById("chat-container");
+    const chatForm = document.getElementById("chat-form");
+    const userInput = document.getElementById("user-input");
+
+    function createMessageElement(text, isUser = false) {
+      const wrapper = document.createElement("div");
+      wrapper.className = flex ${isUser ? "justify-end" : "justify-start"};
+
+      const messageBubble = document.createElement("div");
+      messageBubble.className = `${
+        isUser
+          ? "bg-blue-600 text-white rounded-br-none"
+          : "bg-gray-200 text-gray-900 rounded-bl-none"
+      } max-w-[75%] px-4 py-3 rounded-lg break-words whitespace-pre-wrap`;
+
+      messageBubble.textContent = text;
+      wrapper.appendChild(messageBubble);
+
+      return wrapper;
+    }
+
+    function createBotMessageElement(htmlContent) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "flex justify-start";
+
+      const messageBubble = document.createElement("div");
+      messageBubble.className =
+        "bg-gray-200 text-gray-900 rounded-bl-none max-w-[75%] px-4 py-3 rounded-lg break-words whitespace-pre-wrap";
+
+      messageBubble.innerHTML = htmlContent;
+      wrapper.appendChild(messageBubble);
+
+      return wrapper;
+    }
+
+    function detectFakeNews(text) {
+      const lowerText = text.toLowerCase();
+      let score = 0;
+      fakeNewsKeywords.forEach((keyword) => {
+        if (lowerText.includes(keyword)) {
+          score++;
+        }
+      });
+
+      if (score === 0) {
+        return {
+          verdict: "Likely Real News",
+          explanation:
+            "The text does not contain common fake news indicators. However, always verify from trusted sources.",
+          confidence: "High",
+          icon: "fas fa-check-circle text-green-500",
+        };
+      } else if (score <= 3) {
+        return {
+          verdict: "Possibly Fake News",
+          explanation:
+            "The text contains some suspicious keywords that are often found in fake news. Please verify carefully.",
+          confidence: "Medium",
+          icon: "fas fa-exclamation-triangle text-yellow-500",
+        };
+      } else {
+        return {
+          verdict: "Likely Fake News",
+          explanation:
+            "The text contains multiple suspicious keywords commonly associated with fake news. It is advised to be very cautious.",
+          confidence: "Low",
+          icon: "fas fa-times-circle text-red-500",
+        };
+      }
+    }
+
+    // Utility: Validate URL format
+    function isValidUrl(string) {
+      try {
+        new URL(string);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    // Fetch article content from a public CORS proxy + Mercury Parser API alternative
+    // Since direct fetch from arbitrary websites is blocked by CORS,
+    // we use a free public CORS proxy + Mercury Parser API (or similar) to extract article content.
+    // Here we use https://api.allorigins.win/get?url= to bypass CORS and then parse HTML to extract text.
+    // This is a simple approach and may not work perfectly for all sites.
+    async function fetchArticleText(url) {
+      try {
+        // Encode URL for allorigins
+        const encodedUrl = encodeURIComponent(url);
+        const proxyUrl = https://api.allorigins.win/get?url=${encodedUrl};
+
+        const response = await fetch(proxyUrl);
+        if (!response.ok) {
+          throw new Error("Failed to fetch the URL content.");
+        }
+        const data = await response.json();
+        const htmlString = data.contents;
+
+        // Parse HTML string to extract main text content
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlString, "text/html");
+
+        // Try to extract article text from common tags
+        // Priority: <article>, then <main>, then <body>
+        let articleText = "";
+
+        const articleTag = doc.querySelector("article");
+        if (articleTag) {
+          articleText = articleTag.innerText.trim();
+        } else {
+          const mainTag = doc.querySelector("main");
+          if (mainTag) {
+            articleText = mainTag.innerText.trim();
+          } else {
+            // fallback to body text
+            articleText = doc.body.innerText.trim();
+          }
+        }
+
+        // Limit text length to avoid huge input
+        if (articleText.length > 10000) {
+          articleText = articleText.substring(0, 10000) + "...";
+        }
+
+        return articleText || null;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function appendBotMessage(result) {
+      const htmlContent = `
+        <div class="flex items-center mb-1">
+          <i class="${result.icon} mr-2 text-xl"></i>
+          <span class="font-semibold text-lg">${result.verdict}</span>
+        </div>
+        <p class="text-gray-700">${result.explanation}</p>
+        <p class="mt-1 text-xs text-gray-500 italic">Confidence: ${result.confidence}</p>
+      `;
+      const botMessage = createBotMessageElement(htmlContent);
+      chatContainer.appendChild(botMessage);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function appendBotErrorMessage(text) {
+      const htmlContent = `
+        <div class="flex items-center mb-1">
+          <i class="fas fa-exclamation-circle text-red-500 mr-2 text-xl"></i>
+          <span class="font-semibold text-lg text-red-600">Error</span>
+        </div>
+        <p class="text-red-700">${text}</p>
+      `;
+      const botMessage = createBotMessageElement(htmlContent);
+      chatContainer.appendChild(botMessage);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    chatForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const inputText = userInput.value.trim();
+      if (!inputText) return;
+
+      // Remove placeholder text if present
+      const placeholderDiv = chatContainer.querySelector(
+        "div.text-center.text-gray-400"
+      );
+      if (placeholderDiv) {
+        placeholderDiv.remove();
+      }
+
+      // Append user message
+      const userMessage = createMessageElement(inputText, true);
+      chatContainer.appendChild(userMessage);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+
+      userInput.value = "";
+      userInput.disabled = true;
+
+      // Check if input is a URL
+      if (isValidUrl(inputText)) {
+        // Inform user fetching content
+        const loadingMessage = createBotMessageElement(
+          '<i class="fas fa-spinner fa-spin mr-2"></i>Fetching and analyzing article content...'
+        );
+        chatContainer.appendChild(loadingMessage);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        try {
+          const articleText = await fetchArticleText(inputText);
+          chatContainer.removeChild(loadingMessage);
+
+          if (!articleText || articleText.length < 50) {
+            appendBotErrorMessage(
+              "Could not extract sufficient article content from the URL. Please try another URL or paste the news text directly."
+            );
+          } else {
+            // Analyze extracted article text
+            const result = detectFakeNews(articleText);
+            appendBotMessage(result);
+          }
+        } catch (error) {
+          chatContainer.removeChild(loadingMessage);
+          appendBotErrorMessage(
+            "An error occurred while fetching or analyzing the URL content. Please try again."
+          );
+        }
+      } else {
+        // Input is text, analyze directly
+        setTimeout(() => {
+          const result = detectFakeNews(inputText);
+          appendBotMessage(result);
+          userInput.disabled = false;
+          userInput.focus();
+        }, 800);
+        return;
+      }
+
+      userInput.disabled = false;
+      userInput.focus();
+    });
+  </script>
+ </body>
+</html>
